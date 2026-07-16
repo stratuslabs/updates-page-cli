@@ -2,19 +2,34 @@
   "name": "@updatespage/cli",
   "version": "1.0.0",
   "description": "Official CLI for updates.page - Publish announcements from the command line",
-  "main": "index.js",
   "bin": {
     "updates": "./bin/updates.js"
   },
+  "files": [
+    "bin",
+    "src",
+    "README.md"
+  ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": ["updates", "changelog", "announcements", "cli"],
-  "author": "Stellar Software",
+  "author": "updates.page",
   "license": "MIT",
   "type": "commonjs",
+  "homepage": "https://updates.page",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stellarco/updates-page-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/stellarco/updates-page-cli/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   },
   "dependencies": {
     "commander": "^14.0.3"

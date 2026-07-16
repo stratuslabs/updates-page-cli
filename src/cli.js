@@ -1,6 +1,8 @@
 const { Command } = require('commander');
-const { saveConfig, loadConfig } = require('./config');
+const { saveConfig } = require('./config');
 const ApiClient = require('./api');
+
+const DEFAULT_BASE_URL = 'https://app.updates.page';
 
 const program = new Command();
 
@@ -14,7 +16,7 @@ program
   .command('config')
   .description('Configure API key and base URL')
   .requiredOption('--api-key <key>', 'API key for authentication')
-  .requiredOption('--url <url>', 'Base URL of your updates.page instance')
+  .option('--url <url>', 'Base URL of your updates.page instance', DEFAULT_BASE_URL)
   .action((options) => {
     try {
       saveConfig({

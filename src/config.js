@@ -7,7 +7,7 @@ const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
 
 function ensureConfigDir() {
   if (!fs.existsSync(CONFIG_DIR)) {
-    fs.mkdirSync(CONFIG_DIR, { recursive: true });
+    fs.mkdirSync(CONFIG_DIR, { recursive: true, mode: 0o700 });
   }
 }
 
@@ -26,7 +26,9 @@ function loadConfig() {
 function saveConfig(config) {
   try {
     ensureConfigDir();
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf8');
+    // The config holds an API key — keep it readable by the owner only
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), { encoding: 'utf8', mode: 0o600 });
+    fs.chmodSync(CONFIG_FILE, 0o600);
   } catch (error) {
     throw new Error(`Failed to save config: ${error.message}`);
   }

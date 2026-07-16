@@ -16,10 +16,17 @@ npx @updatespage/cli <command>
 
 ## Setup
 
-Before using the CLI, you need to configure your API key and instance URL:
+Before using the CLI, configure your API key:
 
 ```bash
-updates config --api-key <your-api-key> --url https://yourdomain.updates.page
+updates config --api-key <your-api-key>
+```
+
+The CLI talks to `https://app.updates.page` by default. If you run a
+self-hosted instance, pass `--url`:
+
+```bash
+updates config --api-key <your-api-key> --url https://your-instance.example.com
 ```
 
 Your configuration is saved to `~/.updatespage/config.json`.
@@ -137,7 +144,7 @@ The CLI provides clear error messages:
 
 ## Requirements
 
-- Node.js 18.0.0 or higher
+- Node.js 20.0.0 or higher
 
 ## Development
 
