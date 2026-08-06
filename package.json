@@ -20,10 +20,10 @@
   "homepage": "https://updates.page",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/stellarco/updates-page-cli.git"
+    "url": "git+https://github.com/stratuslabs/updates-page-cli.git"
   },
   "bugs": {
-    "url": "https://github.com/stellarco/updates-page-cli/issues"
+    "url": "https://github.com/stratuslabs/updates-page-cli/issues"
   },
   "publishConfig": {
     "access": "public"

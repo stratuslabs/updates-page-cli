@@ -172,5 +172,5 @@ MIT
 ## Support
 
 - Documentation: https://updates.page/docs
-- Issues: https://github.com/stellarco/updates-page-cli/issues
+- Issues: https://github.com/stratuslabs/updates-page-cli/issues
 - Email: support@updates.page
