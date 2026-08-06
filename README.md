@@ -1,6 +1,6 @@
 # updates.page CLI
 
-Official command-line tool for [updates.page](https://updates.page) - Publish announcements from your terminal.
+Official command-line tool for [updates.page](https://updates.page) - Publish changelog posts from your terminal.
 
 ## Installation
 
@@ -16,10 +16,17 @@ npx @updatespage/cli <command>
 
 ## Setup
 
-Before using the CLI, you need to configure your API key and instance URL:
+Before using the CLI, configure your API key:
 
 ```bash
-updates config --api-key <your-api-key> --url https://yourdomain.updates.page
+updates config --api-key <your-api-key>
+```
+
+The CLI talks to `https://app.updates.page` by default. If you run a
+self-hosted instance, pass `--url`:
+
+```bash
+updates config --api-key <your-api-key> --url https://your-instance.example.com
 ```
 
 Your configuration is saved to `~/.updatespage/config.json`.
@@ -33,9 +40,9 @@ Your configuration is saved to `~/.updatespage/config.json`.
 
 ## Usage
 
-### Publish an announcement
+### Publish a post
 
-Create and immediately publish an announcement:
+Create and immediately publish a post:
 
 ```bash
 updates publish --title "v2.1.0 Released" --content "We've added dark mode and improved performance."
@@ -52,15 +59,15 @@ updates publish \
 
 ### Create a draft
 
-Create an announcement without publishing:
+Create a post without publishing:
 
 ```bash
 updates draft --title "Upcoming Feature" --content "Coming soon..."
 ```
 
-### List announcements
+### List posts
 
-List all announcements:
+List all posts:
 
 ```bash
 updates list
@@ -73,12 +80,12 @@ updates list --status published
 updates list --status draft
 ```
 
-### Get a single announcement
+### Get a single post
 
-Retrieve details for a specific announcement:
+Retrieve details for a specific post:
 
 ```bash
-updates get <announcement-id>
+updates get <post-id>
 ```
 
 ### List categories
@@ -107,7 +114,7 @@ updates draft \
   --content "Here's what we're planning for the first quarter..."
 ```
 
-### Check recent announcements
+### Check recent posts
 
 ```bash
 updates list --status published
@@ -137,7 +144,7 @@ The CLI provides clear error messages:
 
 ## Requirements
 
-- Node.js 18.0.0 or higher
+- Node.js 20.0.0 or higher
 
 ## Development
 

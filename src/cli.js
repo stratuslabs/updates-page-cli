@@ -2,11 +2,13 @@ const { Command } = require('commander');
 const { saveConfig, loadConfig } = require('./config');
 const ApiClient = require('./api');
 
+const DEFAULT_BASE_URL = 'https://app.updates.page';
+
 const program = new Command();
 
 program
   .name('updates')
-  .description('CLI tool for updates.page - Publish announcements from the command line')
+  .description('CLI tool for updates.page - Publish changelog posts from the command line')
   .version('1.0.0');
 
 // Config command
@@ -14,14 +16,20 @@ program
   .command('config')
   .description('Configure API key and base URL')
   .requiredOption('--api-key <key>', 'API key for authentication')
-  .requiredOption('--url <url>', 'Base URL of your updates.page instance')
+  .option('--url <url>', `Base URL of your updates.page instance (default: ${DEFAULT_BASE_URL})`)
   .action((options) => {
     try {
+      // No Commander default for --url: rotating just the API key must not
+      // silently repoint an existing self-hosted config at the hosted service.
+      let existing = null;
+      try { existing = loadConfig(); } catch { /* corrupt config — start fresh */ }
+      const baseUrl = options.url || existing?.baseUrl || DEFAULT_BASE_URL;
       saveConfig({
         apiKey: options.apiKey,
-        baseUrl: options.url,
+        baseUrl,
       });
       console.log('✓ Configuration saved to ~/.updatespage/config.json');
+      console.log(`  API base URL: ${baseUrl}`);
     } catch (error) {
       console.error('Error:', error.message);
       process.exit(1);
@@ -31,9 +39,9 @@ program
 // Publish command
 program
   .command('publish')
-  .description('Create and publish an announcement')
-  .requiredOption('--title <title>', 'Announcement title')
-  .requiredOption('--content <content>', 'Announcement content')
+  .description('Create and publish a post')
+  .requiredOption('--title <title>', 'Post title')
+  .requiredOption('--content <content>', 'Post content')
   .option('--category-id <id>', 'Category ID (optional)')
   .action(async (options) => {
     try {
@@ -46,11 +54,11 @@ program
         data.category_id = options.categoryId;
       }
 
-      const announcement = await api.createAnnouncement(data, true);
-      console.log('✓ Announcement published');
-      console.log(`  ID: ${announcement.id}`);
-      console.log(`  Title: ${announcement.title}`);
-      console.log(`  Published at: ${announcement.published_at}`);
+      const post = await api.createPost(data, true);
+      console.log('✓ Post published');
+      console.log(`  ID: ${post.id}`);
+      console.log(`  Title: ${post.title}`);
+      console.log(`  Published at: ${post.published_at}`);
     } catch (error) {
       console.error('Error:', error.message);
       process.exit(1);
@@ -60,9 +68,9 @@ program
 // Draft command
 program
   .command('draft')
-  .description('Create a draft announcement')
-  .requiredOption('--title <title>', 'Announcement title')
-  .requiredOption('--content <content>', 'Announcement content')
+  .description('Create a draft post')
+  .requiredOption('--title <title>', 'Post title')
+  .requiredOption('--content <content>', 'Post content')
   .option('--category-id <id>', 'Category ID (optional)')
   .action(async (options) => {
     try {
@@ -75,10 +83,10 @@ program
         data.category_id = options.categoryId;
       }
 
-      const announcement = await api.createAnnouncement(data, false);
+      const post = await api.createPost(data, false);
       console.log('✓ Draft created');
-      console.log(`  ID: ${announcement.id}`);
-      console.log(`  Title: ${announcement.title}`);
+      console.log(`  ID: ${post.id}`);
+      console.log(`  Title: ${post.title}`);
     } catch (error) {
       console.error('Error:', error.message);
       process.exit(1);
@@ -88,20 +96,20 @@ program
 // List command
 program
   .command('list')
-  .description('List announcements')
+  .description('List posts')
   .option('--status <status>', 'Filter by status (draft|published)')
   .action(async (options) => {
     try {
       const api = ApiClient.fromConfig();
-      const announcements = await api.listAnnouncements(options.status);
+      const posts = await api.listPosts(options.status);
       
-      if (!announcements || announcements.length === 0) {
-        console.log('No announcements found.');
+      if (!posts || posts.length === 0) {
+        console.log('No posts found.');
         return;
       }
 
-      console.log(`Found ${announcements.length} announcement(s):\n`);
-      announcements.forEach((a) => {
+      console.log(`Found ${posts.length} post(s):\n`);
+      posts.forEach((a) => {
         const status = a.published_at ? '📢 Published' : '📝 Draft';
         console.log(`${status} ${a.title}`);
         console.log(`  ID: ${a.id}`);
@@ -119,20 +127,20 @@ program
 // Get command
 program
   .command('get')
-  .description('Get a single announcement by ID')
-  .argument('<id>', 'Announcement ID')
+  .description('Get a single post by ID')
+  .argument('<id>', 'Post ID')
   .action(async (id) => {
     try {
       const api = ApiClient.fromConfig();
-      const announcement = await api.getAnnouncement(id);
+      const post = await api.getPost(id);
       
-      console.log(`Title: ${announcement.title}`);
-      console.log(`ID: ${announcement.id}`);
-      console.log(`Status: ${announcement.published_at ? 'Published' : 'Draft'}`);
-      if (announcement.published_at) {
-        console.log(`Published: ${new Date(announcement.published_at).toLocaleString()}`);
+      console.log(`Title: ${post.title}`);
+      console.log(`ID: ${post.id}`);
+      console.log(`Status: ${post.published_at ? 'Published' : 'Draft'}`);
+      if (post.published_at) {
+        console.log(`Published: ${new Date(post.published_at).toLocaleString()}`);
       }
-      console.log(`\nContent:\n${announcement.content || '(empty)'}`);
+      console.log(`\nContent:\n${post.content || '(empty)'}`);
     } catch (error) {
       console.error('Error:', error.message);
       process.exit(1);
