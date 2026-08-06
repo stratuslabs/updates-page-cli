@@ -1,5 +1,5 @@
 const { Command } = require('commander');
-const { saveConfig } = require('./config');
+const { saveConfig, loadConfig } = require('./config');
 const ApiClient = require('./api');
 
 const DEFAULT_BASE_URL = 'https://app.updates.page';
@@ -16,14 +16,20 @@ program
   .command('config')
   .description('Configure API key and base URL')
   .requiredOption('--api-key <key>', 'API key for authentication')
-  .option('--url <url>', 'Base URL of your updates.page instance', DEFAULT_BASE_URL)
+  .option('--url <url>', `Base URL of your updates.page instance (default: ${DEFAULT_BASE_URL})`)
   .action((options) => {
     try {
+      // No Commander default for --url: rotating just the API key must not
+      // silently repoint an existing self-hosted config at the hosted service.
+      let existing = null;
+      try { existing = loadConfig(); } catch { /* corrupt config — start fresh */ }
+      const baseUrl = options.url || existing?.baseUrl || DEFAULT_BASE_URL;
       saveConfig({
         apiKey: options.apiKey,
-        baseUrl: options.url,
+        baseUrl,
       });
       console.log('✓ Configuration saved to ~/.updatespage/config.json');
+      console.log(`  API base URL: ${baseUrl}`);
     } catch (error) {
       console.error('Error:', error.message);
       process.exit(1);

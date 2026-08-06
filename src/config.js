@@ -26,9 +26,14 @@ function loadConfig() {
 function saveConfig(config) {
   try {
     ensureConfigDir();
-    // The config holds an API key — keep it readable by the owner only
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), { encoding: 'utf8', mode: 0o600 });
-    fs.chmodSync(CONFIG_FILE, 0o600);
+    // The config holds an API key — keep it readable by the owner only.
+    // Write a fresh 0600 temp file and rename it over the old config: an
+    // existing world-readable file keeps its permissions on rewrite, and
+    // already-open descriptors on the old inode must never see the new key.
+    const tmpFile = `${CONFIG_FILE}.${process.pid}.tmp`;
+    fs.writeFileSync(tmpFile, JSON.stringify(config, null, 2), { encoding: 'utf8', mode: 0o600 });
+    fs.chmodSync(tmpFile, 0o600);
+    fs.renameSync(tmpFile, CONFIG_FILE);
   } catch (error) {
     throw new Error(`Failed to save config: ${error.message}`);
   }
