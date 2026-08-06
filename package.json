@@ -1,6 +1,6 @@
 {
   "name": "@updatespage/cli",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Official CLI for updates.page - Publish announcements from the command line",
   "bin": {
     "updates": "./bin/updates.js"
@@ -13,7 +13,12 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["updates", "changelog", "announcements", "cli"],
+  "keywords": [
+    "updates",
+    "changelog",
+    "announcements",
+    "cli"
+  ],
   "author": "updates.page",
   "license": "MIT",
   "type": "commonjs",

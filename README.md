@@ -40,6 +40,39 @@ Your configuration is saved to `~/.updatespage/config.json`.
 
 ## Usage
 
+### Post options
+
+`publish`, `draft`, and `update` all accept the same field flags:
+
+| Flag | Effect |
+|---|---|
+| `--title <title>` | Post title |
+| `--content <content>` | Post body (HTML or plain text) |
+| `--category-id <id>` | Category (find IDs with `updates categories`) |
+| `--summary <text>` | Short summary shown in feeds and embeds |
+| `--url <url>` | Override URL — link the post to an external page |
+| `--private` / `--public` | Hide from / show on the public changelog |
+
+### Schedule a post
+
+```bash
+updates publish --title "Big launch" --content "<p>Coming soon</p>" --at "2026-09-01T09:00:00Z"
+```
+
+Publish an existing draft (optionally scheduling it):
+
+```bash
+updates publish <post-id> --at "2026-09-01T09:00:00Z"
+```
+
+### Update, unpublish, delete
+
+```bash
+updates update <post-id> --summary "Better summary" --private
+updates unpublish <post-id>   # revert to draft
+updates delete <post-id>
+```
+
 ### Publish a post
 
 Create and immediately publish a post:

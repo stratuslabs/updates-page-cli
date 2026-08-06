@@ -9,7 +9,96 @@ const program = new Command();
 program
   .name('updates')
   .description('CLI tool for updates.page - Publish changelog posts from the command line')
-  .version('1.0.0');
+  .version('1.1.0');
+
+// Shared post-field options for publish/draft/update
+function withPostFieldOptions(cmd) {
+  return cmd
+    .option('--title <title>', 'Post title')
+    .option('--content <content>', 'Post content (HTML or plain text)')
+    .option('--category-id <id>', 'Category ID (see: updates categories)')
+    .option('--summary <text>', 'Short summary shown in feeds and embeds')
+    .option('--url <url>', 'Override URL — link this post to an external page instead')
+    .option('--private', 'Hide this post from the public changelog and embeds')
+    .option('--public', 'Make this post publicly visible');
+}
+
+function collectPostFields(options) {
+  if (options.private && options.public) {
+    throw new Error('--private and --public are mutually exclusive.');
+  }
+  const data = {};
+  if (options.title !== undefined) data.title = options.title;
+  if (options.content !== undefined) data.content = options.content;
+  if (options.categoryId !== undefined) data.category_id = options.categoryId;
+  if (options.summary !== undefined) data.summary = options.summary;
+  if (options.url !== undefined) data.override_url = options.url;
+  if (options.private) data.is_public = false;
+  if (options.public) data.is_public = true;
+  return data;
+}
+
+// Parse --at values: strict ISO 8601 (date, optional time, optional zone).
+// "2026-08-10 09:00" is read as local time; a trailing Z/offset is honored.
+// Strict parsing matters: Date() silently normalizes impossible dates
+// (2026-02-30 becomes 2026-03-02), which would schedule the wrong day.
+function parseWhen(value) {
+  const m = String(value).trim().match(
+    /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(\.\d{1,9})?)?)?(Z|[+-]\d{2}:?\d{2})?$/
+  );
+  if (!m) {
+    throw new Error(`Could not parse date "${value}". Use ISO 8601, e.g. 2026-08-10T09:00:00Z`);
+  }
+  const [, y, mo, d, h = '00', mi = '00', s = '00', frac = '', tz] = m;
+  const daysInMonth = new Date(Date.UTC(+y, +mo, 0)).getUTCDate();
+  if (+mo < 1 || +mo > 12 || +d < 1 || +d > daysInMonth || +h > 23 || +mi > 59 || +s > 59) {
+    throw new Error(`"${value}" is not a valid calendar date/time.`);
+  }
+  const date = new Date(`${y}-${mo}-${d}T${h}:${mi}:${s}${frac}${tz ? (tz === 'Z' ? 'Z' : tz.replace(/(\d{2})(\d{2})$/, '$1:$2')) : ''}`);
+  if (isNaN(date.getTime())) {
+    throw new Error(`Could not parse date "${value}". Use ISO 8601, e.g. 2026-08-10T09:00:00Z`);
+  }
+  // Zone-less values are local time; a spring-forward DST gap (e.g. 02:30 on
+  // the switch night) silently normalizes an hour forward — round-trip the
+  // local components so a nonexistent time errors instead of shifting.
+  if (!tz && (date.getFullYear() !== +y || date.getMonth() + 1 !== +mo || date.getDate() !== +d ||
+              date.getHours() !== +h || date.getMinutes() !== +mi)) {
+    throw new Error(`"${value}" is not a valid local time (it falls in a DST transition gap).`);
+  }
+  if (date.getTime() <= Date.now()) {
+    console.log('  (note: that time is in the past — the post will be live immediately)');
+  }
+  return date.toISOString();
+}
+
+function statusLine(post) {
+  const icons = { Draft: '📝', Scheduled: '🗓', Published: '📢' };
+  const status = post.status || (post.published_at ? 'Published' : 'Draft');
+  const priv = post.is_public === false ? ' 🔒 private' : '';
+  return `${icons[status] || ''} ${status}${priv}`;
+}
+
+function printPost(post, verbose = false) {
+  console.log(`${statusLine(post)} ${post.title}`);
+  console.log(`  ID: ${post.id}`);
+  if (post.published_at) {
+    const when = new Date(post.published_at);
+    const label = when.getTime() > Date.now() ? 'Scheduled for' : 'Published';
+    console.log(`  ${label}: ${when.toLocaleString()}`);
+  }
+  if (verbose) {
+    if (post.summary) console.log(`  Summary: ${post.summary}`);
+    if (post.override_url) console.log(`  Override URL: ${post.override_url}`);
+    if (post.category && post.category.name) console.log(`  Category: ${post.category.name}`);
+    if (post.portal_url) console.log(`  Portal URL: ${post.portal_url}`);
+    console.log(`\nContent:\n${post.content || '(empty)'}`);
+  }
+}
+
+function fail(error) {
+  console.error('Error:', error.message);
+  process.exit(1);
+}
 
 // Config command
 program
@@ -31,65 +120,121 @@ program
       console.log('✓ Configuration saved to ~/.updatespage/config.json');
       console.log(`  API base URL: ${baseUrl}`);
     } catch (error) {
-      console.error('Error:', error.message);
-      process.exit(1);
+      fail(error);
     }
   });
 
-// Publish command
-program
-  .command('publish')
-  .description('Create and publish a post')
-  .requiredOption('--title <title>', 'Post title')
-  .requiredOption('--content <content>', 'Post content')
-  .option('--category-id <id>', 'Category ID (optional)')
-  .action(async (options) => {
+// Publish command — create-and-publish, or publish an existing draft by id
+withPostFieldOptions(
+  program
+    .command('publish')
+    .description('Publish a post — create one, or publish an existing draft by ID')
+    .argument('[id]', 'Existing draft ID to publish (omit to create a new post)')
+    .option('--at <datetime>', 'Schedule: go live at this time instead of now')
+)
+  .action(async (id, options) => {
     try {
       const api = ApiClient.fromConfig();
-      const data = {
-        title: options.title,
-        content: options.content,
-      };
-      if (options.categoryId) {
-        data.category_id = options.categoryId;
+      const publishedAt = options.at ? parseWhen(options.at) : null;
+      let post;
+
+      if (id) {
+        // Publish an existing draft, applying any field changes first
+        const changes = collectPostFields(options);
+        if (Object.keys(changes).length > 0) {
+          await api.updatePost(id, changes);
+        }
+        post = await api.publishPost(id, publishedAt);
+      } else {
+        if (!options.title || !options.content) {
+          throw new Error('--title and --content are required when creating a new post.');
+        }
+        const data = collectPostFields(options);
+        post = await api.createPost(data, publishedAt || true);
       }
 
-      const post = await api.createPost(data, true);
-      console.log('✓ Post published');
+      const scheduled = post.published_at && new Date(post.published_at).getTime() > Date.now();
+      console.log(scheduled ? '✓ Post scheduled' : '✓ Post published');
       console.log(`  ID: ${post.id}`);
       console.log(`  Title: ${post.title}`);
-      console.log(`  Published at: ${post.published_at}`);
+      console.log(`  ${scheduled ? 'Goes live' : 'Published'} at: ${post.published_at}`);
     } catch (error) {
-      console.error('Error:', error.message);
-      process.exit(1);
+      fail(error);
     }
   });
 
 // Draft command
-program
-  .command('draft')
-  .description('Create a draft post')
-  .requiredOption('--title <title>', 'Post title')
-  .requiredOption('--content <content>', 'Post content')
-  .option('--category-id <id>', 'Category ID (optional)')
+withPostFieldOptions(
+  program
+    .command('draft')
+    .description('Create a draft post')
+)
   .action(async (options) => {
     try {
-      const api = ApiClient.fromConfig();
-      const data = {
-        title: options.title,
-        content: options.content,
-      };
-      if (options.categoryId) {
-        data.category_id = options.categoryId;
+      if (!options.title || !options.content) {
+        throw new Error('--title and --content are required.');
       }
-
-      const post = await api.createPost(data, false);
+      const api = ApiClient.fromConfig();
+      const post = await api.createPost(collectPostFields(options), false);
       console.log('✓ Draft created');
       console.log(`  ID: ${post.id}`);
       console.log(`  Title: ${post.title}`);
     } catch (error) {
-      console.error('Error:', error.message);
-      process.exit(1);
+      fail(error);
+    }
+  });
+
+// Update command
+withPostFieldOptions(
+  program
+    .command('update')
+    .description('Update fields on an existing post')
+    .argument('<id>', 'Post ID')
+)
+  .action(async (id, options) => {
+    try {
+      const changes = collectPostFields(options);
+      if (Object.keys(changes).length === 0) {
+        throw new Error('Nothing to update — pass at least one field flag (see: updates update --help).');
+      }
+      const api = ApiClient.fromConfig();
+      const post = await api.updatePost(id, changes);
+      console.log('✓ Post updated');
+      printPost(post);
+    } catch (error) {
+      fail(error);
+    }
+  });
+
+// Unpublish command
+program
+  .command('unpublish')
+  .description('Revert a published or scheduled post to a draft')
+  .argument('<id>', 'Post ID')
+  .action(async (id) => {
+    try {
+      const api = ApiClient.fromConfig();
+      await api.unpublishPost(id);
+      console.log('✓ Post reverted to draft');
+      console.log(`  ID: ${id}`);
+    } catch (error) {
+      fail(error);
+    }
+  });
+
+// Delete command
+program
+  .command('delete')
+  .description('Delete a post permanently')
+  .argument('<id>', 'Post ID')
+  .action(async (id) => {
+    try {
+      const api = ApiClient.fromConfig();
+      await api.deletePost(id);
+      console.log('✓ Post deleted');
+      console.log(`  ID: ${id}`);
+    } catch (error) {
+      fail(error);
     }
   });
 
@@ -97,30 +242,24 @@ program
 program
   .command('list')
   .description('List posts')
-  .option('--status <status>', 'Filter by status (draft|published)')
+  .option('--status <status>', 'Filter by status (draft|scheduled|published)')
   .action(async (options) => {
     try {
       const api = ApiClient.fromConfig();
       const posts = await api.listPosts(options.status);
-      
+
       if (!posts || posts.length === 0) {
         console.log('No posts found.');
         return;
       }
 
       console.log(`Found ${posts.length} post(s):\n`);
-      posts.forEach((a) => {
-        const status = a.published_at ? '📢 Published' : '📝 Draft';
-        console.log(`${status} ${a.title}`);
-        console.log(`  ID: ${a.id}`);
-        if (a.published_at) {
-          console.log(`  Published: ${new Date(a.published_at).toLocaleString()}`);
-        }
+      posts.forEach((post) => {
+        printPost(post);
         console.log('');
       });
     } catch (error) {
-      console.error('Error:', error.message);
-      process.exit(1);
+      fail(error);
     }
   });
 
@@ -133,17 +272,9 @@ program
     try {
       const api = ApiClient.fromConfig();
       const post = await api.getPost(id);
-      
-      console.log(`Title: ${post.title}`);
-      console.log(`ID: ${post.id}`);
-      console.log(`Status: ${post.published_at ? 'Published' : 'Draft'}`);
-      if (post.published_at) {
-        console.log(`Published: ${new Date(post.published_at).toLocaleString()}`);
-      }
-      console.log(`\nContent:\n${post.content || '(empty)'}`);
+      printPost(post, true);
     } catch (error) {
-      console.error('Error:', error.message);
-      process.exit(1);
+      fail(error);
     }
   });
 
@@ -155,7 +286,7 @@ program
     try {
       const api = ApiClient.fromConfig();
       const categories = await api.listCategories();
-      
+
       if (!categories || categories.length === 0) {
         console.log('No categories found.');
         return;
@@ -171,8 +302,7 @@ program
         console.log('');
       });
     } catch (error) {
-      console.error('Error:', error.message);
-      process.exit(1);
+      fail(error);
     }
   });
 

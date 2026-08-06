@@ -86,15 +86,35 @@ class ApiClient {
     });
 
     if (publish && post.id) {
-      return this.publishPost(post.id);
+      return this.publishPost(post.id, publish === true ? null : publish);
     }
 
     return post;
   }
 
-  async publishPost(id) {
+  async publishPost(id, publishedAt = null) {
     return this.request(`/api/v1/posts/${id}/publish`, {
       method: 'POST',
+      body: publishedAt ? JSON.stringify({ published_at: publishedAt }) : undefined,
+    });
+  }
+
+  async updatePost(id, data) {
+    return this.request(`/api/v1/posts/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ post: data }),
+    });
+  }
+
+  async unpublishPost(id) {
+    return this.request(`/api/v1/posts/${id}/unpublish`, {
+      method: 'POST',
+    });
+  }
+
+  async deletePost(id) {
+    return this.request(`/api/v1/posts/${id}`, {
+      method: 'DELETE',
     });
   }
 
