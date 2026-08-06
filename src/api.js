@@ -66,34 +66,34 @@ class ApiClient {
     }
   }
 
-  // Announcements
-  async listAnnouncements(status = null) {
-    let endpoint = '/api/v1/announcements';
+  // Posts
+  async listPosts(status = null) {
+    let endpoint = '/api/v1/posts';
     if (status) {
       endpoint += `?status=${status}`;
     }
     return this.request(endpoint);
   }
 
-  async getAnnouncement(id) {
-    return this.request(`/api/v1/announcements/${id}`);
+  async getPost(id) {
+    return this.request(`/api/v1/posts/${id}`);
   }
 
-  async createAnnouncement(data, publish = false) {
-    const announcement = await this.request('/api/v1/announcements', {
+  async createPost(data, publish = false) {
+    const post = await this.request('/api/v1/posts', {
       method: 'POST',
-      body: JSON.stringify({ announcement: data }),
+      body: JSON.stringify({ post: data }),
     });
 
-    if (publish && announcement.id) {
-      return this.publishAnnouncement(announcement.id);
+    if (publish && post.id) {
+      return this.publishPost(post.id);
     }
 
-    return announcement;
+    return post;
   }
 
-  async publishAnnouncement(id) {
-    return this.request(`/api/v1/announcements/${id}/publish`, {
+  async publishPost(id) {
+    return this.request(`/api/v1/posts/${id}/publish`, {
       method: 'POST',
     });
   }
