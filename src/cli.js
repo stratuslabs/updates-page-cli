@@ -38,9 +38,23 @@ function collectPostFields(options) {
   return data;
 }
 
-// Parse --at values: ISO 8601 or anything Date can read (e.g. "2026-08-10 09:00" local time)
+// Parse --at values: strict ISO 8601 (date, optional time, optional zone).
+// "2026-08-10 09:00" is read as local time; a trailing Z/offset is honored.
+// Strict parsing matters: Date() silently normalizes impossible dates
+// (2026-02-30 becomes 2026-03-02), which would schedule the wrong day.
 function parseWhen(value) {
-  const date = new Date(value);
+  const m = String(value).trim().match(
+    /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?(Z|[+-]\d{2}:?\d{2})?$/
+  );
+  if (!m) {
+    throw new Error(`Could not parse date "${value}". Use ISO 8601, e.g. 2026-08-10T09:00:00Z`);
+  }
+  const [, y, mo, d, h = '00', mi = '00', s = '00', tz] = m;
+  const daysInMonth = new Date(Date.UTC(+y, +mo, 0)).getUTCDate();
+  if (+mo < 1 || +mo > 12 || +d < 1 || +d > daysInMonth || +h > 23 || +mi > 59 || +s > 59) {
+    throw new Error(`"${value}" is not a valid calendar date/time.`);
+  }
+  const date = new Date(`${y}-${mo}-${d}T${h}:${mi}:${s}${tz ? (tz === 'Z' ? 'Z' : tz.replace(/(\d{2})(\d{2})$/, '$1:$2')) : ''}`);
   if (isNaN(date.getTime())) {
     throw new Error(`Could not parse date "${value}". Use ISO 8601, e.g. 2026-08-10T09:00:00Z`);
   }
