@@ -69,6 +69,15 @@ function parseWhen(value) {
   return date.toISOString();
 }
 
+// An immediate publish gets its published_at stamped by the server, which can
+// sit a few seconds ahead of the local clock — treat anything within the skew
+// window as already published, not scheduled.
+const CLOCK_SKEW_MS = 60 * 1000;
+
+function isFuture(dateish) {
+  return new Date(dateish).getTime() > Date.now() + CLOCK_SKEW_MS;
+}
+
 function statusLine(post) {
   const icons = { Draft: '📝', Scheduled: '🗓', Published: '📢' };
   const status = post.status || (post.published_at ? 'Published' : 'Draft');
@@ -81,7 +90,7 @@ function printPost(post, verbose = false) {
   console.log(`  ID: ${post.id}`);
   if (post.published_at) {
     const when = new Date(post.published_at);
-    const label = when.getTime() > Date.now() ? 'Scheduled for' : 'Published';
+    const label = isFuture(when) ? 'Scheduled for' : 'Published';
     console.log(`  ${label}: ${when.toLocaleString()}`);
   }
   if (verbose) {
@@ -141,7 +150,7 @@ withPostFieldOptions(
         post = await api.createPost(data, publishedAt || true);
       }
 
-      const scheduled = post.published_at && new Date(post.published_at).getTime() > Date.now();
+      const scheduled = post.published_at && isFuture(post.published_at);
       console.log(scheduled ? '✓ Post scheduled' : '✓ Post published');
       console.log(`  ID: ${post.id}`);
       console.log(`  Title: ${post.title}`);
