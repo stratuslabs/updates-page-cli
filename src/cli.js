@@ -7,7 +7,7 @@ const program = new Command();
 program
   .name('updates')
   .description('CLI tool for updates.page - Publish changelog posts from the command line')
-  .version('1.2.0');
+  .version('1.3.0');
 
 // Shared post-field options for publish/draft/update
 function withPostFieldOptions(cmd) {
@@ -18,7 +18,8 @@ function withPostFieldOptions(cmd) {
     .option('--summary <text>', 'Short summary shown in feeds and embeds')
     .option('--url <url>', 'Override URL — link this post to an external page instead')
     .option('--private', 'Hide this post from the public changelog and embeds')
-    .option('--public', 'Make this post publicly visible');
+    .option('--public', 'Make this post publicly visible')
+    .option('--cover-image <path>', 'Image file (png/jpg/gif/webp) to set as the post cover');
 }
 
 function collectPostFields(options) {
@@ -150,6 +151,11 @@ withPostFieldOptions(
         post = await api.createPost(data, publishedAt || true);
       }
 
+      if (options.coverImage) {
+        await api.setCoverImage(post.id, options.coverImage);
+        console.log('✓ Cover image set');
+      }
+
       const scheduled = post.published_at && isFuture(post.published_at);
       console.log(scheduled ? '✓ Post scheduled' : '✓ Post published');
       console.log(`  ID: ${post.id}`);
@@ -173,6 +179,10 @@ withPostFieldOptions(
       }
       const api = ApiClient.fromConfig();
       const post = await api.createPost(collectPostFields(options), false);
+      if (options.coverImage) {
+        await api.setCoverImage(post.id, options.coverImage);
+        console.log('✓ Cover image set');
+      }
       console.log('✓ Draft created');
       console.log(`  ID: ${post.id}`);
       console.log(`  Title: ${post.title}`);
@@ -191,11 +201,18 @@ withPostFieldOptions(
   .action(async (id, options) => {
     try {
       const changes = collectPostFields(options);
-      if (Object.keys(changes).length === 0) {
+      if (Object.keys(changes).length === 0 && !options.coverImage) {
         throw new Error('Nothing to update — pass at least one field flag (see: updates update --help).');
       }
       const api = ApiClient.fromConfig();
-      const post = await api.updatePost(id, changes);
+      let post = null;
+      if (Object.keys(changes).length > 0) {
+        post = await api.updatePost(id, changes);
+      }
+      if (options.coverImage) {
+        post = await api.setCoverImage(id, options.coverImage);
+        console.log('✓ Cover image set');
+      }
       console.log('✓ Post updated');
       printPost(post);
     } catch (error) {
@@ -275,22 +292,26 @@ program
     }
   });
 
-// Categories command
-program
+// Categories command group — bare `updates categories` lists (backcompat)
+const categories = program
   .command('categories')
+  .description('Manage categories');
+
+categories
+  .command('list', { isDefault: true })
   .description('List all categories')
   .action(async () => {
     try {
       const api = ApiClient.fromConfig();
-      const categories = await api.listCategories();
+      const list = await api.listCategories();
 
-      if (!categories || categories.length === 0) {
+      if (!list || list.length === 0) {
         console.log('No categories found.');
         return;
       }
 
-      console.log(`Found ${categories.length} category(ies):\n`);
-      categories.forEach((c) => {
+      console.log(`Found ${list.length} category(ies):\n`);
+      list.forEach((c) => {
         console.log(`${c.name}`);
         console.log(`  ID: ${c.id}`);
         if (c.color) {
@@ -298,6 +319,82 @@ program
         }
         console.log('');
       });
+    } catch (error) {
+      fail(error);
+    }
+  });
+
+categories
+  .command('create')
+  .description('Create a category')
+  .requiredOption('--name <name>', 'Category name')
+  .option('--color <hex>', 'Display color, e.g. #8B5CF6')
+  .action(async (options) => {
+    try {
+      const api = ApiClient.fromConfig();
+      const data = { name: options.name };
+      if (options.color !== undefined) data.color = options.color;
+      const category = await api.createCategory(data);
+      console.log('✓ Category created');
+      console.log(`  ID: ${category.id}`);
+      console.log(`  Name: ${category.name}`);
+      if (category.color) console.log(`  Color: ${category.color}`);
+    } catch (error) {
+      fail(error);
+    }
+  });
+
+categories
+  .command('update')
+  .description('Update a category')
+  .argument('<id>', 'Category ID')
+  .option('--name <name>', 'New name')
+  .option('--color <hex>', 'New display color, e.g. #8B5CF6')
+  .action(async (id, options) => {
+    try {
+      const data = {};
+      if (options.name !== undefined) data.name = options.name;
+      if (options.color !== undefined) data.color = options.color;
+      if (Object.keys(data).length === 0) {
+        throw new Error('Nothing to update — pass --name and/or --color.');
+      }
+      const api = ApiClient.fromConfig();
+      const category = await api.updateCategory(id, data);
+      console.log('✓ Category updated');
+      console.log(`  ID: ${category.id}`);
+      console.log(`  Name: ${category.name}`);
+      if (category.color) console.log(`  Color: ${category.color}`);
+    } catch (error) {
+      fail(error);
+    }
+  });
+
+categories
+  .command('delete')
+  .description('Delete a category')
+  .argument('<id>', 'Category ID')
+  .action(async (id) => {
+    try {
+      const api = ApiClient.fromConfig();
+      await api.deleteCategory(id);
+      console.log('✓ Category deleted');
+      console.log(`  ID: ${id}`);
+    } catch (error) {
+      fail(error);
+    }
+  });
+
+// Upload command
+program
+  .command('upload')
+  .description('Upload an image and print its public URL (for use in post content)')
+  .argument('<file>', 'Image file (png/jpg/gif/webp)')
+  .action(async (file) => {
+    try {
+      const api = ApiClient.fromConfig();
+      const result = await api.uploadImage(file);
+      console.log('✓ Image uploaded');
+      console.log(`  URL: ${result.url}`);
     } catch (error) {
       fail(error);
     }
