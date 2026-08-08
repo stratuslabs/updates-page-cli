@@ -1,5 +1,9 @@
 const { requireConfig } = require('./config');
 
+// All API requests go to the hosted service — accounts with a custom
+// changelog domain still authenticate and publish via app.updates.page.
+const BASE_URL = 'https://app.updates.page';
+
 // Rails may return {error: "..."}, {errors: ["...", ...]} or
 // {errors: {field: ["msg"]}} — flatten all of them to a readable string.
 function formatApiError(errorData) {
@@ -17,14 +21,14 @@ function formatApiError(errorData) {
 }
 
 class ApiClient {
-  constructor(apiKey, baseUrl) {
+  constructor(apiKey) {
     this.apiKey = apiKey;
-    this.baseUrl = baseUrl.replace(/\/$/, ''); // Remove trailing slash
+    this.baseUrl = BASE_URL;
   }
 
   static fromConfig() {
     const config = requireConfig();
-    return new ApiClient(config.apiKey, config.baseUrl);
+    return new ApiClient(config.apiKey);
   }
 
   async request(endpoint, options = {}) {

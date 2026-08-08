@@ -22,13 +22,6 @@ Before using the CLI, configure your API key:
 updates config --api-key <your-api-key>
 ```
 
-The CLI talks to `https://app.updates.page` by default. If you run a
-self-hosted instance, pass `--url`:
-
-```bash
-updates config --api-key <your-api-key> --url https://your-instance.example.com
-```
-
 Your configuration is saved to `~/.updatespage/config.json`.
 
 ### Getting an API Key
@@ -159,8 +152,7 @@ The CLI stores your configuration in `~/.updatespage/config.json`:
 
 ```json
 {
-  "apiKey": "your-api-key-here",
-  "baseUrl": "https://yourdomain.updates.page"
+  "apiKey": "your-api-key-here"
 }
 ```
 
@@ -172,7 +164,6 @@ The CLI provides clear error messages:
 
 - **Not configured**: Run `updates config` first
 - **Invalid API key**: Check your API key in the updates.page dashboard
-- **Connection refused**: Verify your base URL is correct
 - **HTTP errors**: The API error message will be displayed
 
 ## Requirements
