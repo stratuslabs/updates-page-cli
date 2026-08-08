@@ -45,6 +45,7 @@ Your configuration is saved to `~/.updatespage/config.json`.
 | `--summary <text>` | Short summary shown in feeds and embeds |
 | `--url <url>` | Override URL — link the post to an external page |
 | `--private` / `--public` | Hide from / show on the public changelog |
+| `--cover-image <path>` | Set a cover image from a local file (png/jpg/gif/webp) |
 
 ### Schedule a post
 
@@ -114,12 +115,32 @@ Retrieve details for a specific post:
 updates get <post-id>
 ```
 
-### List categories
-
-View all available categories:
+### Manage categories
 
 ```bash
-updates categories
+updates categories                                   # list
+updates categories create --name "Security" --color "#8B5CF6"
+updates categories update <id> --name "New name"
+updates categories delete <id>
+```
+
+### Upload images
+
+Upload an image and get a public URL to use in post content:
+
+```bash
+updates upload screenshot.png
+# ✓ Image uploaded
+#   URL: https://...
+
+updates publish --title "New dashboard" \
+  --content '<p>Fresh look:</p><img src="https://..." alt="Dashboard">'
+```
+
+Or set a post's cover image directly:
+
+```bash
+updates publish --title "v2.0" --content "<p>Big release</p>" --cover-image hero.png
 ```
 
 ## Examples

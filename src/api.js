@@ -1,4 +1,31 @@
+const fs = require('fs');
+const path = require('path');
 const { requireConfig } = require('./config');
+
+const IMAGE_MIME_TYPES = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+};
+
+// Build a multipart form with one file field. Content type comes from the
+// extension because the server validates it (png/jpeg/gif/webp only).
+async function fileFormData(fieldName, filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  const mime = IMAGE_MIME_TYPES[ext];
+  if (!mime) {
+    throw new Error(`Unsupported image type "${ext || filePath}". Use: ${Object.keys(IMAGE_MIME_TYPES).join(', ')}`);
+  }
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`File not found: ${filePath}`);
+  }
+  const blob = await fs.openAsBlob(filePath, { type: mime });
+  const form = new FormData();
+  form.append(fieldName, blob, path.basename(filePath));
+  return form;
+}
 
 // All API requests go to the hosted service — accounts with a custom
 // changelog domain still authenticate and publish via app.updates.page.
@@ -35,7 +62,8 @@ class ApiClient {
     const url = `${this.baseUrl}${endpoint}`;
     const headers = {
       'Authorization': `Bearer ${this.apiKey}`,
-      'Content-Type': 'application/json',
+      // FormData bodies set their own multipart content type (with boundary)
+      ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
       ...options.headers,
     };
 
@@ -122,9 +150,52 @@ class ApiClient {
     });
   }
 
+  async setCoverImage(id, filePath) {
+    const form = await fileFormData('post[cover_image]', filePath);
+    return this.request(`/api/v1/posts/${id}/update_cover_image`, {
+      method: 'POST',
+      body: form,
+    });
+  }
+
+  async removeCoverImage(id) {
+    return this.request(`/api/v1/posts/${id}/remove_cover_image`, {
+      method: 'POST',
+    });
+  }
+
   // Categories
   async listCategories() {
     return this.request('/api/v1/categories');
+  }
+
+  async createCategory(data) {
+    return this.request('/api/v1/categories', {
+      method: 'POST',
+      body: JSON.stringify({ category: data }),
+    });
+  }
+
+  async updateCategory(id, data) {
+    return this.request(`/api/v1/categories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ category: data }),
+    });
+  }
+
+  async deleteCategory(id) {
+    return this.request(`/api/v1/categories/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Images
+  async uploadImage(filePath) {
+    const form = await fileFormData('file', filePath);
+    return this.request('/api/v1/uploads', {
+      method: 'POST',
+      body: form,
+    });
   }
 }
 

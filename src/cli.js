@@ -7,7 +7,7 @@ const program = new Command();
 program
   .name('updates')
   .description('CLI tool for updates.page - Publish changelog posts from the command line')
-  .version('1.2.0');
+  .version('1.3.0');
 
 // Shared post-field options for publish/draft/update
 function withPostFieldOptions(cmd) {
@@ -18,7 +18,8 @@ function withPostFieldOptions(cmd) {
     .option('--summary <text>', 'Short summary shown in feeds and embeds')
     .option('--url <url>', 'Override URL — link this post to an external page instead')
     .option('--private', 'Hide this post from the public changelog and embeds')
-    .option('--public', 'Make this post publicly visible');
+    .option('--public', 'Make this post publicly visible')
+    .option('--cover-image <path>', 'Image file (png/jpg/gif/webp) to set as the post cover');
 }
 
 function collectPostFields(options) {
@@ -69,6 +70,15 @@ function parseWhen(value) {
   return date.toISOString();
 }
 
+// An immediate publish gets its published_at stamped by the server, which can
+// sit a few seconds ahead of the local clock — treat anything within the skew
+// window as already published, not scheduled.
+const CLOCK_SKEW_MS = 60 * 1000;
+
+function isFuture(dateish) {
+  return new Date(dateish).getTime() > Date.now() + CLOCK_SKEW_MS;
+}
+
 function statusLine(post) {
   const icons = { Draft: '📝', Scheduled: '🗓', Published: '📢' };
   const status = post.status || (post.published_at ? 'Published' : 'Draft');
@@ -81,8 +91,10 @@ function printPost(post, verbose = false) {
   console.log(`  ID: ${post.id}`);
   if (post.published_at) {
     const when = new Date(post.published_at);
-    const label = when.getTime() > Date.now() ? 'Scheduled for' : 'Published';
-    console.log(`  ${label}: ${when.toLocaleString()}`);
+    // The server's status is authoritative; the skew-tolerant time check is
+    // only a fallback for API responses that omit it.
+    const scheduled = post.status ? post.status === 'Scheduled' : isFuture(when);
+    console.log(`  ${scheduled ? 'Scheduled for' : 'Published'}: ${when.toLocaleString()}`);
   }
   if (verbose) {
     if (post.summary) console.log(`  Summary: ${post.summary}`);
@@ -124,24 +136,41 @@ withPostFieldOptions(
     try {
       const api = ApiClient.fromConfig();
       const publishedAt = options.at ? parseWhen(options.at) : null;
-      let post;
+      let postId = id;
 
-      if (id) {
-        // Publish an existing draft, applying any field changes first
+      if (postId) {
+        // Apply any field changes before publishing the existing draft
         const changes = collectPostFields(options);
         if (Object.keys(changes).length > 0) {
-          await api.updatePost(id, changes);
+          await api.updatePost(postId, changes);
         }
-        post = await api.publishPost(id, publishedAt);
       } else {
         if (!options.title || !options.content) {
           throw new Error('--title and --content are required when creating a new post.');
         }
-        const data = collectPostFields(options);
-        post = await api.createPost(data, publishedAt || true);
+        postId = (await api.createPost(collectPostFields(options), false)).id;
       }
 
-      const scheduled = post.published_at && new Date(post.published_at).getTime() > Date.now();
+      // Cover upload happens while the post is still a draft: a bad path or
+      // a server rejection must not leave a half-configured post live.
+      if (options.coverImage) {
+        try {
+          await api.setCoverImage(postId, options.coverImage);
+          console.log('✓ Cover image set');
+        } catch (error) {
+          throw new Error(
+            `${error.message}\n` +
+            `  The post was NOT published and is saved as a draft (ID: ${postId}).\n` +
+            `  Fix the image and run: updates publish ${postId} --cover-image <path>`
+          );
+        }
+      }
+
+      const post = await api.publishPost(postId, publishedAt);
+
+      // --at with a future time is the only way to schedule; anything else is
+      // an immediate publish, regardless of small client/server clock skew.
+      const scheduled = Boolean(publishedAt) && new Date(publishedAt).getTime() > Date.now();
       console.log(scheduled ? '✓ Post scheduled' : '✓ Post published');
       console.log(`  ID: ${post.id}`);
       console.log(`  Title: ${post.title}`);
@@ -164,9 +193,15 @@ withPostFieldOptions(
       }
       const api = ApiClient.fromConfig();
       const post = await api.createPost(collectPostFields(options), false);
+      // Print the ID before the cover upload: if the upload fails, the draft
+      // exists and the user needs the ID to retry without duplicating it.
       console.log('✓ Draft created');
       console.log(`  ID: ${post.id}`);
       console.log(`  Title: ${post.title}`);
+      if (options.coverImage) {
+        await api.setCoverImage(post.id, options.coverImage);
+        console.log('✓ Cover image set');
+      }
     } catch (error) {
       fail(error);
     }
@@ -182,11 +217,18 @@ withPostFieldOptions(
   .action(async (id, options) => {
     try {
       const changes = collectPostFields(options);
-      if (Object.keys(changes).length === 0) {
+      if (Object.keys(changes).length === 0 && !options.coverImage) {
         throw new Error('Nothing to update — pass at least one field flag (see: updates update --help).');
       }
       const api = ApiClient.fromConfig();
-      const post = await api.updatePost(id, changes);
+      let post = null;
+      if (Object.keys(changes).length > 0) {
+        post = await api.updatePost(id, changes);
+      }
+      if (options.coverImage) {
+        post = await api.setCoverImage(id, options.coverImage);
+        console.log('✓ Cover image set');
+      }
       console.log('✓ Post updated');
       printPost(post);
     } catch (error) {
@@ -266,22 +308,26 @@ program
     }
   });
 
-// Categories command
-program
+// Categories command group — bare `updates categories` lists (backcompat)
+const categories = program
   .command('categories')
+  .description('Manage categories');
+
+categories
+  .command('list', { isDefault: true })
   .description('List all categories')
   .action(async () => {
     try {
       const api = ApiClient.fromConfig();
-      const categories = await api.listCategories();
+      const list = await api.listCategories();
 
-      if (!categories || categories.length === 0) {
+      if (!list || list.length === 0) {
         console.log('No categories found.');
         return;
       }
 
-      console.log(`Found ${categories.length} category(ies):\n`);
-      categories.forEach((c) => {
+      console.log(`Found ${list.length} category(ies):\n`);
+      list.forEach((c) => {
         console.log(`${c.name}`);
         console.log(`  ID: ${c.id}`);
         if (c.color) {
@@ -289,6 +335,82 @@ program
         }
         console.log('');
       });
+    } catch (error) {
+      fail(error);
+    }
+  });
+
+categories
+  .command('create')
+  .description('Create a category')
+  .requiredOption('--name <name>', 'Category name')
+  .option('--color <hex>', 'Display color, e.g. #8B5CF6')
+  .action(async (options) => {
+    try {
+      const api = ApiClient.fromConfig();
+      const data = { name: options.name };
+      if (options.color !== undefined) data.color = options.color;
+      const category = await api.createCategory(data);
+      console.log('✓ Category created');
+      console.log(`  ID: ${category.id}`);
+      console.log(`  Name: ${category.name}`);
+      if (category.color) console.log(`  Color: ${category.color}`);
+    } catch (error) {
+      fail(error);
+    }
+  });
+
+categories
+  .command('update')
+  .description('Update a category')
+  .argument('<id>', 'Category ID')
+  .option('--name <name>', 'New name')
+  .option('--color <hex>', 'New display color, e.g. #8B5CF6')
+  .action(async (id, options) => {
+    try {
+      const data = {};
+      if (options.name !== undefined) data.name = options.name;
+      if (options.color !== undefined) data.color = options.color;
+      if (Object.keys(data).length === 0) {
+        throw new Error('Nothing to update — pass --name and/or --color.');
+      }
+      const api = ApiClient.fromConfig();
+      const category = await api.updateCategory(id, data);
+      console.log('✓ Category updated');
+      console.log(`  ID: ${category.id}`);
+      console.log(`  Name: ${category.name}`);
+      if (category.color) console.log(`  Color: ${category.color}`);
+    } catch (error) {
+      fail(error);
+    }
+  });
+
+categories
+  .command('delete')
+  .description('Delete a category')
+  .argument('<id>', 'Category ID')
+  .action(async (id) => {
+    try {
+      const api = ApiClient.fromConfig();
+      await api.deleteCategory(id);
+      console.log('✓ Category deleted');
+      console.log(`  ID: ${id}`);
+    } catch (error) {
+      fail(error);
+    }
+  });
+
+// Upload command
+program
+  .command('upload')
+  .description('Upload an image and print its public URL (for use in post content)')
+  .argument('<file>', 'Image file (png/jpg/gif/webp)')
+  .action(async (file) => {
+    try {
+      const api = ApiClient.fromConfig();
+      const result = await api.uploadImage(file);
+      console.log('✓ Image uploaded');
+      console.log(`  URL: ${result.url}`);
     } catch (error) {
       fail(error);
     }
