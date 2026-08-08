@@ -1,15 +1,13 @@
 const { Command } = require('commander');
-const { saveConfig, loadConfig } = require('./config');
+const { saveConfig } = require('./config');
 const ApiClient = require('./api');
-
-const DEFAULT_BASE_URL = 'https://app.updates.page';
 
 const program = new Command();
 
 program
   .name('updates')
   .description('CLI tool for updates.page - Publish changelog posts from the command line')
-  .version('1.1.0');
+  .version('1.2.0');
 
 // Shared post-field options for publish/draft/update
 function withPostFieldOptions(cmd) {
@@ -103,22 +101,12 @@ function fail(error) {
 // Config command
 program
   .command('config')
-  .description('Configure API key and base URL')
+  .description('Configure your API key')
   .requiredOption('--api-key <key>', 'API key for authentication')
-  .option('--url <url>', `Base URL of your updates.page instance (default: ${DEFAULT_BASE_URL})`)
   .action((options) => {
     try {
-      // No Commander default for --url: rotating just the API key must not
-      // silently repoint an existing self-hosted config at the hosted service.
-      let existing = null;
-      try { existing = loadConfig(); } catch { /* corrupt config — start fresh */ }
-      const baseUrl = options.url || existing?.baseUrl || DEFAULT_BASE_URL;
-      saveConfig({
-        apiKey: options.apiKey,
-        baseUrl,
-      });
+      saveConfig({ apiKey: options.apiKey });
       console.log('✓ Configuration saved to ~/.updatespage/config.json');
-      console.log(`  API base URL: ${baseUrl}`);
     } catch (error) {
       fail(error);
     }

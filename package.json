@@ -1,6 +1,6 @@
 {
   "name": "@updatespage/cli",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Official CLI for updates.page - Publish announcements from the command line",
   "bin": {
     "updates": "./bin/updates.js"

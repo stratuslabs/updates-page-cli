@@ -41,8 +41,8 @@ function saveConfig(config) {
 
 function requireConfig() {
   const config = loadConfig();
-  if (!config || !config.apiKey || !config.baseUrl) {
-    throw new Error('Not configured. Run: updates config --api-key <key> --url <url>');
+  if (!config || !config.apiKey) {
+    throw new Error('Not configured. Run: updates config --api-key <key>');
   }
   return config;
 }
