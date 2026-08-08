@@ -91,8 +91,10 @@ function printPost(post, verbose = false) {
   console.log(`  ID: ${post.id}`);
   if (post.published_at) {
     const when = new Date(post.published_at);
-    const label = isFuture(when) ? 'Scheduled for' : 'Published';
-    console.log(`  ${label}: ${when.toLocaleString()}`);
+    // The server's status is authoritative; the skew-tolerant time check is
+    // only a fallback for API responses that omit it.
+    const scheduled = post.status ? post.status === 'Scheduled' : isFuture(when);
+    console.log(`  ${scheduled ? 'Scheduled for' : 'Published'}: ${when.toLocaleString()}`);
   }
   if (verbose) {
     if (post.summary) console.log(`  Summary: ${post.summary}`);
@@ -134,29 +136,41 @@ withPostFieldOptions(
     try {
       const api = ApiClient.fromConfig();
       const publishedAt = options.at ? parseWhen(options.at) : null;
-      let post;
+      let postId = id;
 
-      if (id) {
-        // Publish an existing draft, applying any field changes first
+      if (postId) {
+        // Apply any field changes before publishing the existing draft
         const changes = collectPostFields(options);
         if (Object.keys(changes).length > 0) {
-          await api.updatePost(id, changes);
+          await api.updatePost(postId, changes);
         }
-        post = await api.publishPost(id, publishedAt);
       } else {
         if (!options.title || !options.content) {
           throw new Error('--title and --content are required when creating a new post.');
         }
-        const data = collectPostFields(options);
-        post = await api.createPost(data, publishedAt || true);
+        postId = (await api.createPost(collectPostFields(options), false)).id;
       }
 
+      // Cover upload happens while the post is still a draft: a bad path or
+      // a server rejection must not leave a half-configured post live.
       if (options.coverImage) {
-        await api.setCoverImage(post.id, options.coverImage);
-        console.log('✓ Cover image set');
+        try {
+          await api.setCoverImage(postId, options.coverImage);
+          console.log('✓ Cover image set');
+        } catch (error) {
+          throw new Error(
+            `${error.message}\n` +
+            `  The post was NOT published and is saved as a draft (ID: ${postId}).\n` +
+            `  Fix the image and run: updates publish ${postId} --cover-image <path>`
+          );
+        }
       }
 
-      const scheduled = post.published_at && isFuture(post.published_at);
+      const post = await api.publishPost(postId, publishedAt);
+
+      // --at with a future time is the only way to schedule; anything else is
+      // an immediate publish, regardless of small client/server clock skew.
+      const scheduled = Boolean(publishedAt) && new Date(publishedAt).getTime() > Date.now();
       console.log(scheduled ? '✓ Post scheduled' : '✓ Post published');
       console.log(`  ID: ${post.id}`);
       console.log(`  Title: ${post.title}`);
@@ -179,13 +193,15 @@ withPostFieldOptions(
       }
       const api = ApiClient.fromConfig();
       const post = await api.createPost(collectPostFields(options), false);
+      // Print the ID before the cover upload: if the upload fails, the draft
+      // exists and the user needs the ID to retry without duplicating it.
+      console.log('✓ Draft created');
+      console.log(`  ID: ${post.id}`);
+      console.log(`  Title: ${post.title}`);
       if (options.coverImage) {
         await api.setCoverImage(post.id, options.coverImage);
         console.log('✓ Cover image set');
       }
-      console.log('✓ Draft created');
-      console.log(`  ID: ${post.id}`);
-      console.log(`  Title: ${post.title}`);
     } catch (error) {
       fail(error);
     }
