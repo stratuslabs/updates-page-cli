@@ -118,23 +118,29 @@ Other global flags: `--quiet`, `--verbose`, `--no-color`, `--yes`, `--profile`.
 Colour is disabled automatically when the output is not a terminal, and
 `NO_COLOR` is honoured.
 
-## Upgrading from 1.x
+## Upgrading from 1.3
 
-2.0 is a rewrite. Every 1.x command that publishes or reads content is
-unchanged — same names, same flags, same arguments, and `updates categories`
+1.4 rewrites the internals, but every command that publishes or reads content
+is unchanged — same names, same flags, same arguments, and `updates categories`
 with no subcommand still lists. Two things changed:
 
 - **`updates config --api-key` is gone.** Use `updates login`, or
   `updates login --token -` / `$UPDATESPAGE_TOKEN` for unattended use. A key
   passed as a command-line argument is saved in your shell history and is
   readable from the process list, which is the whole reason the browser flow
-  exists. A key saved by 1.x in `~/.updatespage/config.json` is **not** read —
+  exists. A key saved by 1.3 in `~/.updatespage/config.json` is **not** read —
   sign in again.
 - **`list` and `get` render differently.** `list` is a table; `get` is a field
   list followed by the content. If you were scraping either, use `--json` —
   that is what it is for, and it is the interface that will stay stable.
 
-Node `>=22.13 <23 || >=23.4` is required (1.x needed 18+). The gap is real,
+Removing a command is a breaking change and would ordinarily mean 2.0. It is a
+minor here deliberately: 1.0 shipped days before this and the flag it replaces
+is one nobody should have been relying on, so a major version would announce a
+migration that does not exist and spend the number this CLI's first real
+stability commitment should get.
+
+Node `>=22.13 <23 || >=23.4` is required (1.3 needed 18+). The gap is real,
 not a typo: 23.0–23.3 are newer than the 22.13 floor and still lack what it
 provides.
 

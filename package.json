@@ -1,6 +1,6 @@
 {
   "name": "@updatespage/cli",
-  "version": "2.0.0",
+  "version": "1.4.0",
   "description": "Publish changelog posts to updates.page from your terminal.",
   "bin": {
     "updates": "./dist/bin.js"
