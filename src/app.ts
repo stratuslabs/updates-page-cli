@@ -79,6 +79,18 @@ export const resolveAuthProvider = (app: AppConfig, flags: FlagBag): AuthProvide
   };
 };
 
+/**
+ * Trailing slashes are stripped here, once.
+ *
+ * `http://localhost:3000/` is what a browser's address bar hands you, so it is
+ * what people paste. Left alone it reaches `resolveAuthProvider` and produces
+ * `http://localhost:3000//api/v1/oauth/identity` — which `HttpClient` happens
+ * to normalise away but the auth URLs, built by concatenation, do not. The
+ * symptom is a local endpoint where every ordinary command works and only
+ * sign-in fails.
+ */
+const normalizeBaseUrl = (value: string): string => value.replace(/\/+$/, '');
+
 export const resolveBaseUrl = (
   app: AppConfig,
   flags: FlagBag,
@@ -87,7 +99,7 @@ export const resolveBaseUrl = (
   // parser, so precedence and provenance have exactly one implementation.
   const value = flags.string(BASE_URL_FLAG);
   if (value !== undefined && value !== '') {
-    return { value, origin: flags.origin(BASE_URL_FLAG), trusted: true };
+    return { value: normalizeBaseUrl(value), origin: flags.origin(BASE_URL_FLAG), trusted: true };
   }
   return { value: app.auth.baseUrl, origin: 'built-in default', trusted: true };
 };

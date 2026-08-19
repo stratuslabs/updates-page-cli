@@ -150,6 +150,10 @@ default. Most "it works on my machine but not in CI" reports are answered by
 that one line. It exits non-zero if anything is wrong, so it also works as a
 health check.
 
+`--offline` skips only the request that confirms your token with the server;
+everything checkable locally, including whether you have a token at all, is
+still checked. `--config <path>` points it at a specific config file.
+
 ## Development
 
 ```bash
