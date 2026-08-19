@@ -59,7 +59,7 @@ export const program: ProgramDef = {
     whoamiCommand,
     doctorCommand,
   ],
-  footer: 'Docs: https://updates.page/docs · Built with https://github.com/stratuslabs/cli-kit',
+  footer: 'Docs: https://updates.page/docs · Built with https://github.com/stratuslabs/cli-starter',
 };
 
 export const main = (options: {

@@ -1,7 +1,7 @@
 /**
  * Branding and endpoints. Everything that makes this CLI *this* CLI is here.
  *
- * Built from stratuslabs/cli-kit — `src/kit/` is that framework, unmodified,
+ * Built from stratuslabs/cli-starter — `src/kit/` is that framework, unmodified,
  * so improvements can be pulled from upstream without re-applying anything
  * here. `src/commands/` is ours.
  */
