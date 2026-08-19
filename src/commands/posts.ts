@@ -218,8 +218,23 @@ export const draftCommand = defineCommand({
 
     const coverImage = ctx.flags.string('cover-image');
     if (coverImage !== undefined) {
-      await setCoverImage(session, String(post.id), coverImage);
-      ctx.say(ctx.theme.ok('Cover image set'));
+      try {
+        await setCoverImage(session, String(post.id), coverImage);
+        ctx.say(ctx.theme.ok('Cover image set'));
+      } catch (error) {
+        // Under --json the line above never printed, so this error is the only
+        // thing the caller sees — and without the id in it, a script cannot
+        // retry against the draft that now exists and will make a second one.
+        // Same shape as the publish path, for the same reason.
+        const detail = error instanceof Error ? error.message : String(error);
+        throw new CliError('post.cover_failed', detail, {
+          hint:
+            `The draft was created (id ${post.id}). Fix the image and run: ` +
+            `${ctx.program.name} update ${post.id} --cover-image <path>`,
+          cause: error,
+          details: { postId: post.id },
+        });
+      }
     }
 
     ctx.emit({ ok: true, post });

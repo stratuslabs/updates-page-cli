@@ -243,3 +243,92 @@ test('login works when a stored token is bound to another endpoint', async () =>
     await home.cleanup();
   }
 });
+
+test('logout with $UPDATESPAGE_TOKEN set leaves the saved profile alone', async () => {
+  const home = await createTempHome();
+  try {
+    // Both credentials exist and are valid. The env one is what openSession
+    // selects, so it is the one that gets revoked.
+    server.tokens.add('tok_from_env');
+    await saveCredential(home.path, 'updatespage', 'default', {
+      token: 'tok_saved',
+      baseUrl: server.url,
+      createdAt: '2025-12-01T00:00:00.000Z',
+    });
+    server.tokens.add('tok_saved');
+
+    const result = await run({
+      argv: ['logout'],
+      processEnv: { UPDATESPAGE_BASE_URL: server.url, UPDATESPAGE_TOKEN: 'tok_from_env' },
+      homeDir: home.path,
+      fetch: globalThis.fetch,
+    });
+
+    assert.equal(result.exitCode, EXIT.ok, result.output.plain);
+    assert.equal(server.tokens.has('tok_from_env'), false);
+
+    // Deleting the stored one would remove a credential the user never signed
+    // out of — and leave it live on the server with no local copy left to
+    // revoke it from, which is the opposite of what this command is for.
+    assert.equal((await readStore(home.path)).profiles['default']?.token, 'tok_saved');
+    assert.equal(server.tokens.has('tok_saved'), true);
+    assert.match(stripAnsi(result.output.plain), /UPDATESPAGE_TOKEN/);
+  } finally {
+    await home.cleanup();
+  }
+});
+
+test('logout without an env token still removes the saved credential', async () => {
+  const home = await createTempHome();
+  try {
+    // The other half, so the guard cannot just stop deleting entirely.
+    await saveCredential(home.path, 'updatespage', 'default', {
+      token: 'tok_only',
+      baseUrl: server.url,
+      createdAt: '2025-12-01T00:00:00.000Z',
+    });
+    server.tokens.add('tok_only');
+
+    const result = await run({
+      argv: ['logout'],
+      processEnv: { UPDATESPAGE_BASE_URL: server.url },
+      homeDir: home.path,
+      fetch: globalThis.fetch,
+    });
+
+    assert.equal(result.exitCode, EXIT.ok, result.output.plain);
+    assert.equal(server.tokens.has('tok_only'), false);
+    assert.equal((await readStore(home.path)).profiles['default'], undefined);
+  } finally {
+    await home.cleanup();
+  }
+});
+
+test('cancelling the verification does not save the token and report success', async () => {
+  const home = await createTempHome();
+  try {
+    // Save-on-unreachable is a judgement about the server. Ctrl-C is not
+    // evidence about the server, and treating it as such saved the credential
+    // and exited 0 — the one outcome the user was trying to prevent.
+    const controller = new AbortController();
+    const result = await run({
+      argv: ['login', '--token', '-'],
+      stdin: ['tok_test'],
+      processEnv: { UPDATESPAGE_BASE_URL: server.url },
+      homeDir: home.path,
+      signal: controller.signal,
+      fetch: (input, init) => {
+        // The identity probe is the only request this flow makes.
+        controller.abort();
+        return Promise.reject(
+          init?.signal?.reason ?? Object.assign(new Error('aborted'), { name: 'AbortError' }),
+        );
+      },
+    });
+
+    assert.equal(result.exitCode, EXIT.interrupted, result.output.plain);
+    await assert.rejects(readStore(home.path));
+  } finally {
+    await home.cleanup();
+  }
+});

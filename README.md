@@ -30,7 +30,9 @@ UPDATESPAGE_TOKEN=... updates list
 Tokens are stored in `~/.updatespage/credentials.json` with `0600`
 permissions, and are only ever sent to the endpoint that issued them. Sign out
 with `updates logout`, which revokes the token server-side rather than only
-deleting the local copy.
+deleting the local copy — and signs out of exactly the credential you were
+using, so with `$UPDATESPAGE_TOKEN` set it revokes that one and leaves any
+saved profile untouched.
 
 Keep separate accounts side by side with `--profile`:
 

@@ -166,3 +166,51 @@ test('a lapsed deadline is still a timeout', async () => {
     return true;
   });
 });
+
+test('a failure while reading the body is still classified as transport', async () => {
+  // fetch() resolves once the headers arrive, so a stall or a dropped
+  // connection lands on response.text() instead. Outside the transport catch
+  // it escaped as an unclassified error and exited 1.
+  const client = new HttpClient({
+    baseUrl: 'https://api.example.test',
+    fetch: async () =>
+      new Response(
+        new ReadableStream({
+          pull() {
+            throw Object.assign(new Error('connection reset'), { code: 'ECONNRESET' });
+          },
+        }),
+      ),
+    userAgent: 'test/1.0',
+  });
+
+  await assert.rejects(client.get('/thing'), (error: unknown) => {
+    assert.ok(error instanceof NetworkError, `got ${String(error)}`);
+    assert.equal((error as NetworkError).exitCode, EXIT.network);
+    return true;
+  });
+});
+
+test('a cancellation while reading the body is a cancellation', async () => {
+  // The same path, but the user pressed Ctrl-C after the headers arrived.
+  const controller = new AbortController();
+  const client = new HttpClient({
+    baseUrl: 'https://api.example.test',
+    fetch: async () =>
+      new Response(
+        new ReadableStream({
+          pull() {
+            controller.abort();
+            throw Object.assign(new Error('aborted'), { name: 'AbortError' });
+          },
+        }),
+      ),
+    userAgent: 'test/1.0',
+    signal: controller.signal,
+  });
+
+  await assert.rejects(client.get('/thing'), (error: unknown) => {
+    assert.ok(error instanceof InterruptedError, `got ${String(error)}`);
+    return true;
+  });
+});

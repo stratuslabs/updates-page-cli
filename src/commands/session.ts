@@ -23,6 +23,8 @@ export interface Session {
   profile: string;
   token: string | undefined;
   tokenSource: string | undefined;
+  /** 'env' or 'profile' — see ResolvedCredential. Undefined when unsigned. */
+  tokenOrigin: 'env' | 'profile' | undefined;
   credentials: CredentialsFile;
 }
 
@@ -69,6 +71,7 @@ export const openSession = async (
     profile,
     token: resolved?.token,
     tokenSource: resolved?.source,
+    tokenOrigin: resolved?.origin,
     credentials,
   };
 };

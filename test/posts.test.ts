@@ -223,3 +223,34 @@ test('categories create requires a name', async () => {
   assert.equal(result.exitCode, EXIT.usage);
   assert.match(stripAnsi(result.output.stderr), /--name/);
 });
+
+test('a failed cover upload on draft --json still reports the created id', async () => {
+  // The draft exists by this point. Under --json the "Draft created" line is
+  // suppressed, so this error is the only thing an automated caller sees —
+  // and without the id it cannot retry against the draft and makes a second.
+  const result = await cli(['draft', '--title', 'WIP', '--content', '<p>x</p>',
+    '--cover-image', '/nonexistent/cover.png', '--json']);
+
+  assert.notEqual(result.exitCode, EXIT.ok);
+  const parsed = JSON.parse(result.output.stdout) as {
+    ok: boolean;
+    error: { code: string; details?: { postId?: unknown }; hint?: string };
+  };
+  assert.equal(parsed.ok, false);
+  assert.equal(parsed.error.code, 'post.cover_failed');
+  assert.ok(parsed.error.details?.postId !== undefined, result.output.stdout);
+  assert.match(String(parsed.error.hint), /update \d+ --cover-image/);
+});
+
+test('a failed cover upload on publish --json reports the id too', async () => {
+  // The path that already did this right; asserted so the two cannot drift.
+  const result = await cli(['publish', '--title', 'New', '--content', '<p>x</p>',
+    '--cover-image', '/nonexistent/cover.png', '--json']);
+
+  assert.notEqual(result.exitCode, EXIT.ok);
+  const parsed = JSON.parse(result.output.stdout) as {
+    error: { code: string; details?: { postId?: unknown } };
+  };
+  assert.equal(parsed.error.code, 'post.cover_failed');
+  assert.ok(parsed.error.details?.postId !== undefined, result.output.stdout);
+});
