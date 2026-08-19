@@ -3,7 +3,7 @@
  *
  * One declaration per command, and *everything* is derived from it: argument
  * parsing, validation, dispatch, `--help`, per-command help, and shell
- * completions when those land.
+ * completions.
  *
  * This exists to make one specific bug unrepresentable. In our other CLI the
  * parser is a 515-line if-chain and the help text is a separate hand-written
@@ -92,6 +92,11 @@ export interface ProgramDef {
   globalFlags: Record<string, FlagDef>;
   /** Rendered at the foot of the root help. */
   footer?: string;
+  /**
+   * ASCII art for the banner. Absent means no banner, everywhere.
+   * See `banner.ts` for when one is shown — it is narrower than you think.
+   */
+  art?: readonly string[];
 }
 
 /** Identity helper; exists for inference and for a greppable declaration site. */

@@ -8,6 +8,7 @@ import type { CliEnvironment, CliStreams } from './core/env.ts';
 import { GLOBAL_FLAGS, runCli } from './core/run.ts';
 
 import { categoriesCommand } from './commands/categories.ts';
+import { completionsCommand } from './commands/completions.ts';
 import { doctorCommand } from './commands/doctor.ts';
 import { loginCommand } from './commands/login.ts';
 import { logoutCommand } from './commands/logout.ts';
@@ -58,7 +59,9 @@ export const program: ProgramDef = {
     logoutCommand,
     whoamiCommand,
     doctorCommand,
+    completionsCommand,
   ],
+  ...(APP.art === undefined ? {} : { art: APP.art }),
   footer: 'Docs: https://updates.page/docs · Built with https://github.com/stratuslabs/cli-starter',
 };
 

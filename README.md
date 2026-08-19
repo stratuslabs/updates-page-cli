@@ -58,8 +58,24 @@ API access requires the Pro plan or above.
 | `updates upload <file>` | Upload an image and print its URL |
 | `updates login` / `logout` / `whoami` | Sign in, out, and check who you are |
 | `updates doctor` | Show the resolved setup and where each value came from |
+| `updates completions <shell>` | Print a tab-completion script for bash, zsh or fish |
 
-Run `updates <command> --help` for the details of any one.
+Run `updates <command> --help` for the details of any one, or `updates` on its
+own for a summary.
+
+### Tab completion
+
+The script is generated from the same command registry that `--help` reads, so
+it cannot describe a command the CLI does not have.
+
+```bash
+updates completions zsh > "${fpath[1]}/_updates"        # zsh
+updates completions bash > /etc/bash_completion.d/updates
+updates completions fish > ~/.config/fish/completions/updates.fish
+```
+
+Or regenerate it on every new shell by putting `eval "$(updates completions
+zsh)"` in your rc file, which keeps it current across upgrades.
 
 ### Post fields
 

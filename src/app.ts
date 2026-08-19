@@ -18,6 +18,7 @@ export interface AppConfig {
   envPrefix: string;
   auth: AuthProvider;
   footer?: string;
+  art?: readonly string[];
 }
 
 /**
@@ -34,6 +35,16 @@ export const APP: AppConfig = {
   version: CLI_VERSION,
   summary: 'Publish changelog posts from your terminal.',
   envPrefix: 'UPDATESPAGE',
+  // Shown above the help when someone types `updates` with no arguments, and
+  // nowhere else — see `core/banner.ts` for the gating, which is the part that
+  // keeps this charming rather than tiresome.
+  art: [
+    '#   # ####  ####   ###  ##### #####  ####',
+    '#   # #   # #   # #   #   #   #     #',
+    '#   # ####  #   # #####   #   ####   ###',
+    '#   # #     #   # #   #   #   #         #',
+    ' ###  #     ####  #   #   #   ##### ####',
+  ],
   auth: {
     displayName: 'updates.page',
     baseUrl: DEFAULT_BASE_URL,
