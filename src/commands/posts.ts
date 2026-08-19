@@ -8,10 +8,10 @@
  * re-listed per command.
  */
 
-import { defineCommand, type FlagDef } from '../kit/command.ts';
-import type { RunContext } from '../kit/context.ts';
-import { CliError, UsageError } from '../kit/errors.ts';
-import { definitionList, plural, table } from '../kit/render.ts';
+import { defineCommand, type FlagDef } from '../core/command.ts';
+import type { RunContext } from '../core/context.ts';
+import { CliError, UsageError } from '../core/errors.ts';
+import { definitionList, plural, table } from '../core/render.ts';
 import {
   fileFormData,
   isScheduled,

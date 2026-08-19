@@ -9,8 +9,8 @@
 import assert from 'node:assert/strict';
 import { after, before, beforeEach, test } from 'node:test';
 
-import { EXIT } from '../src/kit/errors.ts';
-import { stripAnsi } from '../src/kit/theme.ts';
+import { EXIT } from '../src/core/errors.ts';
+import { stripAnsi } from '../src/core/theme.ts';
 import { parseWhen } from '../src/commands/posts-api.ts';
 import { run } from './support/harness.ts';
 import { startMockServer, type MockServer } from './support/mock-server.ts';

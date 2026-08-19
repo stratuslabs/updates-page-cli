@@ -6,8 +6,8 @@
  * half is which server said so.
  */
 
-import { defineCommand } from '../kit/command.ts';
-import { definitionList } from '../kit/render.ts';
+import { defineCommand } from '../core/command.ts';
+import { definitionList } from '../core/render.ts';
 import { fetchIdentity, openSession } from './session.ts';
 
 export const whoamiCommand = defineCommand({

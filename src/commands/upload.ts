@@ -3,7 +3,7 @@
  * pasting into post content.
  */
 
-import { defineCommand } from '../kit/command.ts';
+import { defineCommand } from '../core/command.ts';
 import { fileFormData } from './posts-api.ts';
 import { openSession } from './session.ts';
 

@@ -9,8 +9,8 @@
  */
 
 import { APP, tokenEnvName } from '../app.ts';
-import { defineCommand } from '../kit/command.ts';
-import { deleteCredential } from '../kit/credentials.ts';
+import { defineCommand } from '../core/command.ts';
+import { deleteCredential } from '../core/credentials.ts';
 import { openSession, profileName } from './session.ts';
 
 export const logoutCommand = defineCommand({

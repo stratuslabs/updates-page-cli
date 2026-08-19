@@ -1,14 +1,14 @@
 /**
  * Branding and endpoints. Everything that makes this CLI *this* CLI is here.
  *
- * Built from stratuslabs/cli-starter — `src/kit/` is that framework, unmodified,
+ * Built from stratuslabs/cli-starter — `src/core/` is that framework, unmodified,
  * so improvements can be pulled from upstream without re-applying anything
  * here. `src/commands/` is ours.
  */
 
-import type { AuthProvider } from './kit/auth/provider.ts';
-import type { FlagBag } from './kit/context.ts';
-import { CLI_VERSION } from './kit/version.ts';
+import type { AuthProvider } from './core/auth/provider.ts';
+import type { FlagBag } from './core/context.ts';
+import { CLI_VERSION } from './core/version.ts';
 
 export interface AppConfig {
   name: string;
