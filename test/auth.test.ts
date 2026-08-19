@@ -1,14 +1,9 @@
 /**
- * Sign-in, and the upgrade path from v1.
- *
- * The migration cases matter as much as the flow: anyone upgrading already has
- * a key in `~/.updatespage/config.json`, and silently signing them out would
- * be the worst possible first impression of the new version.
+ * Sign-in, end to end against a stand-in server.
  */
 
 import assert from 'node:assert/strict';
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { readFile, stat } from 'node:fs/promises';
 import { after, before, test } from 'node:test';
 
 import { credentialsPath, type CredentialsFile } from '../src/kit/credentials.ts';
@@ -35,12 +30,6 @@ const env = (): Record<string, string> => ({ UPDATESPAGE_BASE_URL: server.url, D
 const readStore = async (home: string): Promise<CredentialsFile> =>
   JSON.parse(await readFile(credentialsPath(home, 'updatespage'), 'utf8')) as CredentialsFile;
 
-/** Write a v1 config file, as an upgrading user would already have. */
-const writeLegacyConfig = async (home: string, apiKey: string): Promise<void> => {
-  await mkdir(join(home, '.updatespage'), { recursive: true });
-  await writeFile(join(home, '.updatespage', 'config.json'), JSON.stringify({ apiKey }, null, 2));
-};
-
 test('browser sign-in stores a token', async () => {
   const home = await createTempHome();
   try {
@@ -65,124 +54,61 @@ test('browser sign-in stores a token', async () => {
   }
 });
 
-test('a v1 config.json still authenticates, so upgrading does not sign you out', async () => {
+test('--token - reads the token from stdin, never from argv', async () => {
   const home = await createTempHome();
   try {
-    await writeLegacyConfig(home.path, 'tok_test');
-
+    // The reason this exists: a token passed as an argument is saved in shell
+    // history and readable from the process list.
     const result = await run({
-      argv: ['list', '--json'],
+      argv: ['login', '--token', '-'],
+      stdin: ['tok_test'],
       processEnv: { UPDATESPAGE_BASE_URL: server.url },
       homeDir: home.path,
       fetch: globalThis.fetch,
     });
 
     assert.equal(result.exitCode, EXIT.ok, result.output.plain);
-    const parsed = JSON.parse(result.output.stdout) as { ok: boolean };
-    assert.equal(parsed.ok, true);
+    assert.equal((await readStore(home.path)).profiles['default']?.token, 'tok_test');
   } finally {
     await home.cleanup();
   }
 });
 
-test('doctor names the legacy file as the source, so the state is not a mystery', async () => {
+test('a token the server rejects is not saved', async () => {
   const home = await createTempHome();
   try {
-    await writeLegacyConfig(home.path, 'tok_test');
-
     const result = await run({
-      argv: ['doctor'],
-      processEnv: { UPDATESPAGE_BASE_URL: server.url },
-      homeDir: home.path,
-      fetch: globalThis.fetch,
-    });
-
-    assert.match(stripAnsi(result.output.plain), /config\.json \(v1\)/);
-  } finally {
-    await home.cleanup();
-  }
-});
-
-test('a saved credential wins over the legacy file', async () => {
-  const home = await createTempHome();
-  try {
-    // A stale v1 key must not shadow a fresh sign-in.
-    await writeLegacyConfig(home.path, 'tok_stale_v1');
-    await run({
-      argv: ['login'],
-      processEnv: env(),
-      homeDir: home.path,
-      fetch: globalThis.fetch,
-      openExternal: async (url) => {
-        await globalThis.fetch(url);
-      },
-    });
-
-    const store = await readStore(home.path);
-    assert.notEqual(store.profiles['default']?.token, 'tok_stale_v1');
-
-    const who = await run({
-      argv: ['whoami', '--json'],
-      processEnv: { UPDATESPAGE_BASE_URL: server.url },
-      homeDir: home.path,
-      fetch: globalThis.fetch,
-    });
-    assert.equal(who.exitCode, EXIT.ok, who.output.plain);
-  } finally {
-    await home.cleanup();
-  }
-});
-
-test('the legacy file is only consulted for the default profile', async () => {
-  const home = await createTempHome();
-  try {
-    // A v1 key predates profiles, so attributing it to a named one would be
-    // inventing a fact about where it came from.
-    await writeLegacyConfig(home.path, 'tok_test');
-
-    const result = await run({
-      argv: ['list', '--profile', 'staging'],
+      argv: ['login', '--token', '-'],
+      stdin: ['tok_definitely_not_valid'],
       processEnv: { UPDATESPAGE_BASE_URL: server.url },
       homeDir: home.path,
       fetch: globalThis.fetch,
     });
 
     assert.equal(result.exitCode, EXIT.auth);
+    // Saving a bad token turns every later command into a confusing 401.
+    await assert.rejects(readStore(home.path));
   } finally {
     await home.cleanup();
   }
 });
 
-test('`config --api-key` still works, warns, and writes the new format', async () => {
+test('UPDATESPAGE_TOKEN authenticates without any stored credential', async () => {
   const home = await createTempHome();
   try {
+    // The unattended path: CI sets this and never runs `login` at all.
     const result = await run({
-      argv: ['config', '--api-key', 'tok_test'],
-      processEnv: { UPDATESPAGE_BASE_URL: server.url },
+      argv: ['list', '--json'],
+      processEnv: { UPDATESPAGE_BASE_URL: server.url, UPDATESPAGE_TOKEN: 'tok_test' },
       homeDir: home.path,
       fetch: globalThis.fetch,
     });
 
     assert.equal(result.exitCode, EXIT.ok, result.output.plain);
-    // Kept working so upgrading does not break anyone's setup, but it should
-    // say why `login` is better — the key is in the shell history now.
-    assert.match(stripAnsi(result.output.plain), /deprecated/i);
-    assert.match(stripAnsi(result.output.plain), /login/);
-
-    const store = await readStore(home.path);
-    assert.equal(store.profiles['default']?.token, 'tok_test');
+    assert.equal((JSON.parse(result.output.stdout) as { ok: boolean }).ok, true);
   } finally {
     await home.cleanup();
   }
-});
-
-test('`config` is hidden from help but still reachable', async () => {
-  const help = await run({ argv: ['--help'] });
-  assert.doesNotMatch(help.output.stdout, /^\s+config\s/m);
-
-  const own = await run({ argv: ['config', '--help'] });
-  assert.equal(own.exitCode, EXIT.ok);
-  assert.match(own.output.stdout, /--api-key/);
 });
 
 test('logout revokes server-side, so the token stops working', async () => {

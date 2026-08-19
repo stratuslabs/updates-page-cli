@@ -18,8 +18,8 @@ Opens your browser, you approve, done. On a machine without one — an SSH
 session, a container, CI — it detects that and shows a short code to enter
 from any other device instead.
 
-For unattended use, read a token from stdin so it never appears in your shell
-history or in the process list:
+For unattended use — CI, a container — read a token from stdin so it never
+appears in your shell history or in the process list:
 
 ```bash
 updates login --token - < token.txt
@@ -120,22 +120,23 @@ Colour is disabled automatically when the output is not a terminal, and
 
 ## Upgrading from 1.x
 
-**Every command, flag and argument still works.** The things to know:
+2.0 is a rewrite. Every 1.x command that publishes or reads content is
+unchanged — same names, same flags, same arguments, and `updates categories`
+with no subcommand still lists. Two things changed:
 
-- **`updates config --api-key` is deprecated** but still works. It warns and
-  points at `updates login`. A key typed on the command line is saved in your
-  shell history and is visible to other processes, which is the whole reason
-  the browser flow exists.
-- **Your existing key keeps working.** `~/.updatespage/config.json` is still
-  read, so upgrading does not sign you out. Signing in again writes the newer
-  `credentials.json` and the old file stops being consulted. `updates doctor`
-  will tell you which one is in use.
-- **`list` and `get` render differently.** `list` is now a table; `get` is a
-  field list followed by the content. If you were scraping either, use
-  `--json` instead — that is what it is for.
-- **Node `>=22.13 <23 || >=23.4` is required** (1.x needed 18+). The gap is
-  real, not a typo: 23.0–23.3 are newer than the 22.13 floor and still lack
-  what it provides.
+- **`updates config --api-key` is gone.** Use `updates login`, or
+  `updates login --token -` / `$UPDATESPAGE_TOKEN` for unattended use. A key
+  passed as a command-line argument is saved in your shell history and is
+  readable from the process list, which is the whole reason the browser flow
+  exists. A key saved by 1.x in `~/.updatespage/config.json` is **not** read —
+  sign in again.
+- **`list` and `get` render differently.** `list` is a table; `get` is a field
+  list followed by the content. If you were scraping either, use `--json` —
+  that is what it is for, and it is the interface that will stay stable.
+
+Node `>=22.13 <23 || >=23.4` is required (1.x needed 18+). The gap is real,
+not a typo: 23.0–23.3 are newer than the 22.13 floor and still lack what it
+provides.
 
 ## Troubleshooting
 

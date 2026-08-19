@@ -8,7 +8,6 @@ import type { CliEnvironment, CliStreams } from './kit/env.ts';
 import { GLOBAL_FLAGS, runCli } from './kit/run.ts';
 
 import { categoriesCommand } from './commands/categories.ts';
-import { configCommand } from './commands/config.ts';
 import { doctorCommand } from './commands/doctor.ts';
 import { loginCommand } from './commands/login.ts';
 import { logoutCommand } from './commands/logout.ts';
@@ -44,7 +43,7 @@ export const program: ProgramDef = {
     },
   },
   // Ordered as someone would meet them: publishing first, then reading, then
-  // account plumbing. `config` is hidden — it is the deprecated v1 path.
+  // account plumbing.
   commands: [
     publishCommand,
     draftCommand,
@@ -59,7 +58,6 @@ export const program: ProgramDef = {
     logoutCommand,
     whoamiCommand,
     doctorCommand,
-    configCommand,
   ],
   footer: 'Docs: https://updates.page/docs · Built with https://github.com/stratuslabs/cli-kit',
 };

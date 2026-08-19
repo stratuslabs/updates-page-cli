@@ -4,9 +4,6 @@
  * in a second copy.
  */
 
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
-
 import { APP, baseUrlEnvName, resolveAuthProvider, resolveBaseUrl, tokenEnvName } from '../app.ts';
 import type { RunContext } from '../kit/context.ts';
 import {
@@ -17,27 +14,6 @@ import {
 } from '../kit/credentials.ts';
 import { AuthError } from '../kit/errors.ts';
 import { HttpClient } from '../kit/http.ts';
-
-/**
- * Where v1 kept its key: `~/.updatespage/config.json`, shaped `{"apiKey": "…"}`.
- *
- * Still read, so upgrading does not silently sign everyone out. It is only a
- * fallback — anything in `credentials.json` wins — and `login` writes the new
- * format, so the legacy file quietly stops mattering after the next sign-in.
- */
-export const legacyConfigPath = (homeDir: string): string =>
-  join(homeDir, `.${APP.brand}`, 'config.json');
-
-export const readLegacyApiKey = async (homeDir: string): Promise<string | undefined> => {
-  try {
-    const raw = await readFile(legacyConfigPath(homeDir), 'utf8');
-    const parsed = JSON.parse(raw) as { apiKey?: unknown };
-    return typeof parsed.apiKey === 'string' && parsed.apiKey !== '' ? parsed.apiKey : undefined;
-  } catch {
-    // Missing or unreadable is the normal case for anyone who never used v1.
-    return undefined;
-  }
-};
 
 export interface Session {
   http: HttpClient;
@@ -61,7 +37,7 @@ export const openSession = async (
   const credentials = await loadCredentials(ctx.env.homeDir, APP.brand);
 
   const envValue = ctx.env.processEnv[tokenEnvName(APP)];
-  let resolved = resolveCredential(credentials, {
+  const resolved = resolveCredential(credentials, {
     profile,
     baseUrl: base.value,
     baseUrlOrigin: base.origin,
@@ -71,16 +47,6 @@ export const openSession = async (
       : { envToken: { name: tokenEnvName(APP), value: envValue } }),
     now: ctx.env.now(),
   });
-
-  // Only consulted when nothing newer exists, and only for the default
-  // profile — a v1 key predates profiles, so attributing it to a named one
-  // would be inventing a fact.
-  if (resolved === undefined && profile === DEFAULT_PROFILE) {
-    const legacy = await readLegacyApiKey(ctx.env.homeDir);
-    if (legacy !== undefined) {
-      resolved = { token: legacy, source: '~/.updatespage/config.json (v1)' };
-    }
-  }
 
   if (options.require === true && resolved === undefined) {
     throw new AuthError('auth.not_signed_in', `You are not signed in to ${APP.auth.displayName}.`, {
