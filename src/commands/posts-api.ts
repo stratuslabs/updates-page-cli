@@ -6,8 +6,8 @@
 import { existsSync, openAsBlob } from 'node:fs';
 import { basename, extname } from 'node:path';
 
-import { CliError, UsageError } from '../kit/errors.ts';
-import type { Theme } from '../kit/theme.ts';
+import { CliError, UsageError } from '../core/errors.ts';
+import type { Theme } from '../core/theme.ts';
 
 export interface Post {
   id: number | string;

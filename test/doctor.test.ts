@@ -8,9 +8,9 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
-import { saveCredential } from '../src/kit/credentials.ts';
-import { EXIT } from '../src/kit/errors.ts';
-import { stripAnsi } from '../src/kit/theme.ts';
+import { saveCredential } from '../src/core/credentials.ts';
+import { EXIT } from '../src/core/errors.ts';
+import { stripAnsi } from '../src/core/theme.ts';
 import { createTempHome, run } from './support/harness.ts';
 
 test('--offline still reports that nobody is signed in', async () => {

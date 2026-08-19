@@ -14,15 +14,15 @@
  */
 
 import { APP, resolveAuthProvider, resolveBaseUrl, tokenEnvName } from '../app.ts';
-import { canOpenBrowser, deviceLogin } from '../kit/auth/device.ts';
-import { loopbackLogin } from '../kit/auth/loopback.ts';
-import type { AuthResult } from '../kit/auth/provider.ts';
-import { defineCommand } from '../kit/command.ts';
-import type { RunContext } from '../kit/context.ts';
-import { saveCredential, type StoredCredential } from '../kit/credentials.ts';
-import { AuthError, CliError, InterruptedError, isInterruption } from '../kit/errors.ts';
-import { HttpClient } from '../kit/http.ts';
-import { box } from '../kit/render.ts';
+import { canOpenBrowser, deviceLogin } from '../core/auth/device.ts';
+import { loopbackLogin } from '../core/auth/loopback.ts';
+import type { AuthResult } from '../core/auth/provider.ts';
+import { defineCommand } from '../core/command.ts';
+import type { RunContext } from '../core/context.ts';
+import { saveCredential, type StoredCredential } from '../core/credentials.ts';
+import { AuthError, CliError, InterruptedError, isInterruption } from '../core/errors.ts';
+import { HttpClient } from '../core/http.ts';
+import { box } from '../core/render.ts';
 import { describeIdentity, fetchIdentity, openSession, profileName, type Identity } from './session.ts';
 
 /** Read the whole of stdin, for `--token -`. */

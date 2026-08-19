@@ -6,9 +6,9 @@ import assert from 'node:assert/strict';
 import { readFile, stat } from 'node:fs/promises';
 import { after, before, test } from 'node:test';
 
-import { credentialsPath, saveCredential, type CredentialsFile } from '../src/kit/credentials.ts';
-import { EXIT } from '../src/kit/errors.ts';
-import { stripAnsi } from '../src/kit/theme.ts';
+import { credentialsPath, saveCredential, type CredentialsFile } from '../src/core/credentials.ts';
+import { EXIT } from '../src/core/errors.ts';
+import { stripAnsi } from '../src/core/theme.ts';
 import { createTempHome, run } from './support/harness.ts';
 import { startMockServer, type MockServer } from './support/mock-server.ts';
 

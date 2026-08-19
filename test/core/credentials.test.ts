@@ -11,8 +11,8 @@ import {
   sameOrigin,
   saveCredential,
   type CredentialsFile,
-} from '../../src/kit/credentials.ts';
-import { AuthError } from '../../src/kit/errors.ts';
+} from '../../src/core/credentials.ts';
+import { AuthError } from '../../src/core/errors.ts';
 import { createTempHome } from '../support/harness.ts';
 
 const credential = (baseUrl: string, token = 'tok_1') => ({

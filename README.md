@@ -176,7 +176,7 @@ Tests drive the real entry point with fake streams and a temp home directory —
 nothing is spawned and nothing touches the network. `--base-url` (or
 `UPDATESPAGE_BASE_URL`) points the CLI at a local Rails app.
 
-Built with [cli-kit](https://github.com/stratuslabs/cli-kit). `src/kit/` is
+Built with [cli-starter](https://github.com/stratuslabs/cli-starter). `src/core/` is
 that framework, unmodified, so improvements can be pulled from upstream;
 `src/commands/` is this CLI.
 

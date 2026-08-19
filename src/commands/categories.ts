@@ -5,9 +5,9 @@
  * `defaultSubcommand` preserves that after `list` became explicit.
  */
 
-import { defineCommand } from '../kit/command.ts';
-import { UsageError } from '../kit/errors.ts';
-import { plural, table } from '../kit/render.ts';
+import { defineCommand } from '../core/command.ts';
+import { UsageError } from '../core/errors.ts';
+import { plural, table } from '../core/render.ts';
 import type { Category } from './posts-api.ts';
 import { openSession } from './session.ts';
 
