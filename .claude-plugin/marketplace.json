@@ -1,0 +1,20 @@
+{
+  "name": "stratuslabs",
+  "description": "Claude Code plugins for Stratus Labs products.",
+  "owner": {
+    "name": "Stratus Labs",
+    "email": "hello@updates.page",
+    "url": "https://github.com/stratuslabs"
+  },
+  "plugins": [
+    {
+      "name": "updates-page",
+      "displayName": "updates.page",
+      "description": "Publish changelog posts to updates.page from Claude Code, using the updates CLI.",
+      "keywords": ["changelog", "release-notes", "updates.page", "cli"],
+      "source": "./plugins/updates-page",
+      "homepage": "https://docs.updates.page/agents",
+      "license": "MIT"
+    }
+  ]
+}

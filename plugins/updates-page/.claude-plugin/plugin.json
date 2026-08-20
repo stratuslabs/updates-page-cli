@@ -1,0 +1,15 @@
+{
+  "name": "updates-page",
+  "displayName": "updates.page",
+  "version": "1.0.0",
+  "description": "Publish changelog posts to updates.page from Claude Code, using the updates CLI.",
+  "author": {
+    "name": "updates.page",
+    "email": "hello@updates.page",
+    "url": "https://updates.page"
+  },
+  "homepage": "https://docs.updates.page/agents",
+  "repository": "https://github.com/stratuslabs/updates-page-cli",
+  "license": "MIT",
+  "keywords": ["changelog", "release-notes", "updates.page", "cli"]
+}
