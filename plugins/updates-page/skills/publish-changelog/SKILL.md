@@ -82,12 +82,22 @@ Exit codes are stable and mean one thing each. Branch on them, and on
 | Code | Meaning | What to do |
 |---:|---|---|
 | `0` | Success | — |
+| `1` | No more specific code applied | Read the message; do not retry blindly |
 | `2` | Usage — bad flag or argument | Fix the command; do not retry it unchanged |
 | `3` | Configuration problem | Run `updates doctor` |
-| `4` | Not signed in, or token rejected | Run `updates login`; this needs the user |
+| `4` | Not signed in, or the token was refused | Run `updates login` — but see below |
 | `5` | Network or server error | Retry with backoff |
 | `6` | No such post/category | Re-read ids with `list` / `categories` |
+| `7` | Exists, but is in the wrong state (409/422) | Fix the state or the fields; retrying unchanged will fail again |
 | `130` | Cancelled | Stop |
+
+**`7` is the one to read carefully.** It covers validation failures as well as
+state conflicts — publishing a post that is already live, or sending a field
+the API rejects. Both mean *change something*, not *try again*.
+
+**`4` does not always mean "sign in again".** A token that is refused because
+the account may not use the API surfaces here too. If `updates login` has
+already succeeded, do not loop on it — say what happened and stop.
 
 Under `--json` a failure is JSON on stdout too:
 
