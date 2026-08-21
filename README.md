@@ -103,11 +103,13 @@ Failures exit with a code that says what went wrong, so a script can tell
 | Code | Meaning |
 |---:|---|
 | `0` | Success |
+| `1` | Anything without a more specific code |
 | `2` | Usage — unknown flag, missing argument, bad value |
 | `3` | Configuration problem |
 | `4` | Not signed in, or the token was rejected |
 | `5` | Network failure or server error |
 | `6` | The thing you named does not exist |
+| `7` | It exists, but is in the wrong state for this — a 409, or a 422 the API rejected |
 | `130` | Cancelled (Ctrl-C) |
 
 Under `--json`, a failure is JSON on stdout too:
@@ -161,6 +163,27 @@ health check.
 `--offline` skips only the request that confirms your token with the server;
 everything checkable locally, including whether you have a token at all, is
 still checked. `--config <path>` points it at a specific config file.
+
+## Claude Code plugin
+
+There is a Claude Code plugin here too, so an agent knows how to use this CLI
+without being told — and knows when not to publish.
+
+```
+/plugin marketplace add stratuslabs/updates-page-cli
+/plugin install updates-page@stratuslabs
+```
+
+It installs one skill, `publish-changelog`, which fires when someone has just
+shipped and wants it announced. The skill is deliberately more about judgment
+than mechanics: draft rather than publish unless publishing was actually
+asked for, one post per shipped change rather than per commit, a headline
+rather than a commit subject, and don't invent a changelog entry for an
+internal refactor. `plugins/updates-page/skills/publish-changelog/SKILL.md`
+is the whole of it.
+
+Not shipped to npm — `files` in `package.json` is `dist` and `README.md`, so
+the plugin lives in the repository only.
 
 ## Development
 
